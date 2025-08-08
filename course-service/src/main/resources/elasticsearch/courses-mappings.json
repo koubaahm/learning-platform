@@ -1,0 +1,9 @@
+{
+  "properties": {
+    "courseName":        { "type": "text" },
+    "courseDescription": { "type": "text" },
+    "category":          { "type": "keyword" },
+    "instructor":        { "type": "keyword" },
+    "createdDate":       { "type": "date", "format": "strict_date_optional_time||epoch_millis" }
+  }
+}

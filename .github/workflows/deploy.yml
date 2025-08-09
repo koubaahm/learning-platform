@@ -1,0 +1,48 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:  
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # (Optionnel) Construire le JAR côté runner.
+      # Si tes Dockerfile/compose reconstruisent déjà côté VM, tu peux supprimer ce bloc.
+      - name: Build backend JAR
+        run: |
+          cd course-service
+          chmod +x mvnw || true
+          ./mvnw -q -DskipTests package || mvn -q -DskipTests package
+
+      # Envoi des fichiers utiles uniquement (évite d’uploader node_modules/target)
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_PORT }}            # <-- 2222 si NAT
+          source: |
+            docker-compose.yml
+            course-service/**
+            frontend/**
+          target: "~/app"
+
+      - name: Deploy on server (docker compose up)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_PORT }}            # <-- 2222 si NAT
+          script: |
+            cd ~/app
+            docker compose down
+            docker compose up -d --build

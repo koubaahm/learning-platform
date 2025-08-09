@@ -1,0 +1,20 @@
+# Ignorer fichiers/dossiers inutiles
+node_modules
+dist
+build
+target
+.DS_Store
+*.log
+*.tmp
+*.swp
+*.swo
+.idea
+*.iml
+
+# Ignorer config Git et GitHub
+.git
+.github
+
+# Ignorer fichiers de dev
+.env
+*.local

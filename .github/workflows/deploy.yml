@@ -7,12 +7,18 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Linux, X64]
-
+    runs-on: [self-hosted, vm-deploy]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
 
       - name: Build backend JAR
         run: |

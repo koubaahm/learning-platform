@@ -1,38 +1,15 @@
-name: Deploy to VM
+version: "3.8"
+services:
+  backend:
+    build: ./course-service
+    container_name: course-service
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
 
-on:
-  push:
-    branches:
-      - main  # ou master selon ta branche principale
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Build project (backend)
-        run: |
-          cd course-service
-          ./mvnw package -DskipTests
-
-      - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          source: "."
-          target: "~/app"
-
-      - name: Deploy on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            cd ~/app
-            docker compose down
-            docker compose up --build -d
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped

@@ -28,5 +28,5 @@ jobs:
 
       - name: Docker Compose up
         run: |
-          docker compose down || true
-          docker compose up -d --build
+          docker compose -f docker-compose.yml down || true
+          docker compose -f docker-compose.yml up -d --build

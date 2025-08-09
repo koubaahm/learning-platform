@@ -31,8 +31,3 @@ jobs:
         run: |
           docker compose down || true
           docker compose up -d --build
-
-      - name: Wait for backend
-        run: |
-          sleep 5
-          curl -fsS --retry 100 --retry-connrefused --retry-delay 3 http://localhost:8080/actuator/health

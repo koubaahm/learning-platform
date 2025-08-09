@@ -12,35 +12,27 @@ concurrency:
 jobs:
   deploy:
     runs-on: self-hosted
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Backend: on build le JAR pour que le Dockerfile puisse le copier (target/app.jar)
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Build backend JAR
+      - name: Build backend
         run: |
           cd course-service
           chmod +x mvnw || true
           ./mvnw -B -U -DskipTests clean package
 
-      # Optionnel: si tu as un .env à la racine, docker compose le prendra tout seul.
-      # Sinon, tu peux injecter des variables ici avec --env-file .env
-
-      - name: Compose UP (backend + frontend + db + es + kibana)
+      - name: Compose up
         run: |
-          docker compose -f docker-compose.yml down || true
-          docker compose -f docker-compose.yml up -d --build
+          docker compose down || true
+          docker compose up -d --build
 
-      # (Optionnel) Vérifs rapides
-      - name: Check backend health
+      - name: Wait for backend
         run: |
-          curl -fsS http://localhost:8080/actuator/health || (docker logs course-service && exit 1)
-
+          sleep 5
+          curl -fsS --retry 40 --retry-connrefused --retry-delay 3 http://localhost:8080/actuator/health

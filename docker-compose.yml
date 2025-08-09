@@ -5,9 +5,9 @@ services:
     image: postgres:15
     container_name: lp-postgres
     environment:
-      POSTGRES_DB: ${DB_NAME:-course_db}
-      POSTGRES_USER: ${DB_USER:-admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -58,9 +58,9 @@ services:
       elasticsearch:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-course_db}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER:-admin}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-admin}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
     ports:

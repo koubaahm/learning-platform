@@ -5,9 +5,20 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-learning-platform
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: self-hosted
+
+    # On lit les secrets côté CI et on les expose au job
+    env:
+      DB_NAME: ${{ secrets['DB_NAME'] }}
+      DB_USER: ${{ secrets['DB_USER'] }}
+      DB_PASSWORD: ${{ secrets['DB_PASSWORD'] }}
+      # VITE_API_BASE_URL: ${{ secrets['VITE_API_BASE_URL'] }}  # (optionnel)
 
     steps:
       - name: Checkout repository
@@ -24,9 +35,25 @@ jobs:
         run: |
           cd course-service
           chmod +x mvnw || true
-          ./mvnw clean install -U -DskipTests -B
+          ./mvnw -B -U -DskipTests clean package
+
+      # Génère .env local AU RUN (non committé), lu par docker compose
+      - name: Generate .env from GitHub Secrets
+        run: |
+          echo "::add-mask::$DB_PASSWORD"
+          {
+            echo "DB_NAME=$DB_NAME"
+            echo "DB_USER=$DB_USER"
+            echo "DB_PASSWORD=$DB_PASSWORD"
+            # echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"  # (si tu utilises un secret pour le front)
+          } > .env
 
       - name: Docker Compose up
         run: |
-          docker compose -f docker-compose.yml down || true
-          docker compose -f docker-compose.yml up -d --build
+          docker compose --env-file .env -f docker-compose.yml down || true
+          docker compose --env-file .env -f docker-compose.yml up -d --build
+
+      - name: Health check backend
+        run: |
+          sleep 10
+          curl -fsS http://localhost:8080/actuator/health || (docker logs course-service && exit 1)

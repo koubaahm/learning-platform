@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: ${IMAGE_BACKEND}:${TAG:-latest}
+    image: ${IMAGE_BACKEND}:${TAG}
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ${IMAGE_FRONTEND}:${TAG:-latest}
+    image: ${IMAGE_FRONTEND}:${TAG}
     ports:
       - "3000:80"
     depends_on:

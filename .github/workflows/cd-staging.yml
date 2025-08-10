@@ -1,32 +1,29 @@
-name: CD - Prod (Manual)
+name: CD - Staging
 
 permissions:
   contents: read
   packages: read
 
 on:
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: "Tag/commit SHA à déployer (utilisé comme TAG dans compose)"
-        required: true
+  push:
+    branches: ["develop"]
 
 concurrency:
-  group: deploy-prod
+  group: deploy-staging
   cancel-in-progress: true
 
 jobs:
-  deploy-prod:
+  deploy-staging:
     permissions:
       contents: read
       packages: read
     runs-on: self-hosted
     timeout-minutes: 30
     environment:
-      name: production
+      name: staging
       url: http://localhost:8080
     env:
-      TAG: ${{ inputs.image_tag }}
+      TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout repo at requested ref
@@ -41,14 +38,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull & deploy
+      - name: Pull & deploy staging
         shell: bash
         run: |
           set -euo pipefail
-          docker compose -p lp-prod --env-file .env down --remove-orphans || true
-          docker compose -p lp-prod --env-file .env pull
-          docker compose -p lp-prod --env-file .env up -d --wait --wait-timeout 300
-          docker compose -p lp-prod --env-file .env ps
+          docker compose -p lp-staging --env-file .env.staging down --remove-orphans || true
+          docker compose -p lp-staging --env-file .env.staging pull
+          docker compose -p lp-staging --env-file .env.staging up -d --wait --wait-timeout 300
+          docker compose -p lp-staging --env-file .env.staging ps
 
       - name: Health probe with retries
         shell: bash
@@ -62,5 +59,5 @@ jobs:
             echo "Waiting for health... ($i/10)"; sleep 5
           done
           echo "Backend not healthy"
-          docker compose -p lp-prod --env-file .env logs backend || true
+          docker compose -p lp-staging --env-file .env.staging logs backend || true
           exit 1

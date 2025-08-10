@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:15
-    container_name: lp-postgres
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -19,7 +18,6 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
-    container_name: lp-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -38,7 +36,6 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.14.3
-    container_name: lp-kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
@@ -50,7 +47,6 @@ services:
 
   backend:
     image: ghcr.io/koubaahm/learning-platform-backend:latest
-    container_name: course-service
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,7 +71,6 @@ services:
 
   frontend:
     image: ghcr.io/koubaahm/learning-platform-frontend:latest
-    container_name: frontend
     ports:
       - "3000:80"
     depends_on:

@@ -22,6 +22,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    # Staging: ports côté hôte paramétrables (19200/19300 conseillés)
     ports:
       - "${ES_HTTP_PORT:-9200}:9200"
       - "${ES_TRANSPORT_PORT:-9300}:9300"
@@ -33,6 +34,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+      start_period: 60s  
     restart: unless-stopped
 
   kibana:
@@ -55,12 +57,18 @@ services:
         condition: service_healthy
     environment:
       SERVER_PORT: 8080
+
+      
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
+
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-    # Port HTTP du backend paramétrable (18080 par défaut en staging)
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      SPRING_ELASTICSEARCH_CONNECTION_TIMEOUT: 5s
+      SPRING_ELASTICSEARCH_SOCKET_TIMEOUT: 30s
+
     ports:
       - "${BACKEND_HTTP_PORT:-8080}:8080"
     healthcheck:
@@ -72,7 +80,6 @@ services:
 
   frontend:
     image: ${IMAGE_FRONTEND}:${TAG}
-    # Port HTTP du frontend paramétrable (18081 par défaut en staging)
     ports:
       - "${FRONTEND_HTTP_PORT:-8081}:80"
     depends_on:

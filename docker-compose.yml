@@ -3,7 +3,6 @@ version: '3.9'
 services:
   postgres:
     image: postgres:15
-    container_name: ${COMPOSE_PROJECT_NAME:-lp}-postgres
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -11,7 +10,7 @@ services:
     ports:
       - "${PG_PORT}:5432"          # <- différent staging vs prod
     volumes:
-      - ${COMPOSE_PROJECT_NAME:-lp}_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${DB_NAME:-course_db}"]
       interval: 5s
@@ -21,7 +20,6 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
-    container_name: ${COMPOSE_PROJECT_NAME:-lp}-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -29,7 +27,7 @@ services:
     ports:
       - "${ES_PORT}:9200"          # <- 9201 en staging, 9200 en prod
     volumes:
-      - ${COMPOSE_PROJECT_NAME:-lp}_es_data:/usr/share/elasticsearch/data
+      - es_data:/usr/share/elasticsearch/data
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=50s' | grep -q '\"status\":\"'"]
       interval: 5s
@@ -39,7 +37,6 @@ services:
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.14.3
-    container_name: ${COMPOSE_PROJECT_NAME:-lp}-kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
@@ -51,7 +48,6 @@ services:
 
   backend:
     image: ghcr.io/koubaahm/learning-platform-backend:${IMAGE_TAG:-latest}
-    container_name: ${COMPOSE_PROJECT_NAME:-lp}-backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,8 +60,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-      #Préfixer les index ES si tu partages un seul cluster :
-      APP_SEARCH_INDEX_PREFIX: ${COMPOSE_PROJECT_NAME:-lp}
+      # Préfixe d'index (mets APP_SEARCH_INDEX_PREFIX dans .env.staging / .env.prod)
+      APP_SEARCH_INDEX_PREFIX: ${APP_SEARCH_INDEX_PREFIX:-lp}
     ports:
       - "${BACKEND_PORT}:8080"
     healthcheck:
@@ -77,7 +73,6 @@ services:
 
   frontend:
     image: ghcr.io/koubaahm/learning-platform-frontend:${IMAGE_TAG:-latest}
-    container_name: ${COMPOSE_PROJECT_NAME:-lp}-frontend
     ports:
       - "${FRONTEND_PORT}:80"
     depends_on:
@@ -86,5 +81,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  ${COMPOSE_PROJECT_NAME:-lp}_postgres_data:
-  ${COMPOSE_PROJECT_NAME:-lp}_es_data:
+  postgres_data:
+  es_data:

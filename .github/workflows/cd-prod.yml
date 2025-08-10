@@ -18,12 +18,18 @@ concurrency:
 jobs:
   deploy-prod:
     runs-on: self-hosted
+    timeout-minutes: 30
     environment:
       name: production   # Configure Required reviewers dans Settings > Environments
       url: http://localhost:8080
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+
     steps:
-      - name: Checkout repository
+      - name: Checkout repository at requested commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.image_tag }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -33,15 +39,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull & deploy (prod stack)
+        shell: bash
         run: |
-          IMAGE_TAG="${{ inputs.image_tag }}" docker compose -p lp-prod --env-file .env.prod pull
-          IMAGE_TAG="${{ inputs.image_tag }}" docker compose -p lp-prod --env-file .env.prod up -d --wait --wait-timeout 300
+          set -euo pipefail
+          docker compose -p lp-prod --env-file .env.prod pull
+          docker compose -p lp-prod --env-file .env.prod up -d --wait --wait-timeout 300
           docker compose -p lp-prod --env-file .env.prod ps
 
       - name: Quick health probe (host-level)
+        shell: bash
         run: |
-          curl -fsS http://localhost:8080/actuator/health || {
-            echo "Backend not healthy (host-level)";
-            docker compose -p lp-prod --env-file .env.prod logs backend;
-            exit 1;
-          }
+          if curl -fsS http://localhost:8080/actuator/health; then
+            exit 0
+          fi
+          echo "Backend not healthy (host-level)"
+          docker compose -p lp-prod --env-file .env.prod logs backend || true
+          exit 1

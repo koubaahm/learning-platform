@@ -12,9 +12,14 @@ on:
 env:
   REGISTRY: ghcr.io
 
+concurrency:
+  group: learning-platform-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,15 +48,17 @@ jobs:
 
       - name: Build backend image
         run: |
+          set -euo pipefail
+          trap 'echo " Cancel reçu -> stop build"; exit 130' INT TERM
           cd course-service
           chmod +x mvnw || true
-          ./mvnw -B -U -DskipTests clean package
-          docker build -t $IMAGE_BACKEND:$TAG -t $IMAGE_BACKEND:latest .
+          timeout 15m ./mvnw -B -U -DskipTests clean package
+          timeout 20m docker build -t $IMAGE_BACKEND:$TAG -t $IMAGE_BACKEND:latest .
 
       - name: Build frontend image
         run: |
           cd frontend
-          docker build -t $IMAGE_FRONTEND:$TAG -t $IMAGE_FRONTEND:latest .
+          timeout 15m docker build -t $IMAGE_FRONTEND:$TAG -t $IMAGE_FRONTEND:latest .
 
       - name: Push images (main only)
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

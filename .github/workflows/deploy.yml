@@ -1,5 +1,9 @@
 name: CI/CD - Learning Platform
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches: ["main"]
@@ -7,13 +11,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ghcr.io/koubaahm/learning-platform-backend
-  IMAGE_FRONTEND: ghcr.io/koubaahm/learning-platform-frontend
 
 jobs:
- 
-  # 1) CI - Build & Push Images
 
+  # 1) CI - Build & Push Images
   build:
     runs-on: ubuntu-latest
 
@@ -28,6 +29,13 @@ jobs:
           java-version: '21'
           cache: maven  
 
+      - name: Define image names
+        run: |
+          OWNER=${{ github.repository_owner }}
+          echo "IMAGE_BACKEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-backend" >> $GITHUB_ENV
+          echo "IMAGE_FRONTEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-frontend" >> $GITHUB_ENV
+          echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -41,32 +49,41 @@ jobs:
           cd course-service
           chmod +x mvnw || true
           ./mvnw -B -U -DskipTests clean package
-          docker build -t $IMAGE_BACKEND:${{ github.sha }} .
+          docker build -t $IMAGE_BACKEND:$TAG -t $IMAGE_BACKEND:latest .
 
       # Frontend build
       - name: Build frontend image
         run: |
           cd frontend
-          docker build -t $IMAGE_FRONTEND:${{ github.sha }} .
+          docker build -t $IMAGE_FRONTEND:$TAG -t $IMAGE_FRONTEND:latest .
 
       # Push images
       - name: Push images
         run: |
-          docker push $IMAGE_BACKEND:${{ github.sha }}
-          docker push $IMAGE_FRONTEND:${{ github.sha }}
+          docker push $IMAGE_BACKEND:$TAG
+          docker push $IMAGE_BACKEND:latest
+          docker push $IMAGE_FRONTEND:$TAG
+          docker push $IMAGE_FRONTEND:latest
 
-  
+
   # 2) CD - Deploy sur VM
-  
   deploy:
     runs-on: self-hosted
     needs: build
     environment:
       name: production
       url: http://localhost:8080
+
     steps:
-      - name: Pull latest code
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Define image names
+        run: |
+          OWNER=${{ github.repository_owner }}
+          echo "IMAGE_BACKEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-backend" >> $GITHUB_ENV
+          echo "IMAGE_FRONTEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-frontend" >> $GITHUB_ENV
+          echo "TAG=latest" >> $GITHUB_ENV  # On déploie toujours la dernière image stable
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -77,9 +94,6 @@ jobs:
 
       - name: Update images & restart stack
         run: |
-          export IMAGE_BACKEND=$IMAGE_BACKEND
-          export IMAGE_FRONTEND=$IMAGE_FRONTEND
-          export TAG=${{ github.sha }}
           docker compose -f docker-compose.yml pull
           docker compose -f docker-compose.yml up -d
 

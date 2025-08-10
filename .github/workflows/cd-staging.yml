@@ -39,7 +39,7 @@ jobs:
       - name: Pull & deploy (staging stack)
         run: |
           IMAGE_TAG="${{ github.event.workflow_run.head_sha }}" docker compose -p lp-staging --env-file .env.staging pull
-          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}" docker compose -p lp-staging --env-file .env.staging up -d --wait --wait-timeout 120
+          IMAGE_TAG="${{ github.event.workflow_run.head_sha }}" docker compose -p lp-staging --env-file .env.staging up -d --wait --wait-timeout 300
           docker compose -p lp-staging --env-file .env.staging ps
 
       - name: Quick health probe (host-level)

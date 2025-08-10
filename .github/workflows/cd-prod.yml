@@ -35,7 +35,7 @@ jobs:
       - name: Pull & deploy (prod stack)
         run: |
           IMAGE_TAG="${{ inputs.image_tag }}" docker compose -p lp-prod --env-file .env.prod pull
-          IMAGE_TAG="${{ inputs.image_tag }}" docker compose -p lp-prod --env-file .env.prod up -d --wait --wait-timeout 180
+          IMAGE_TAG="${{ inputs.image_tag }}" docker compose -p lp-prod --env-file .env.prod up -d --wait --wait-timeout 300
           docker compose -p lp-prod --env-file .env.prod ps
 
       - name: Quick health probe (host-level)

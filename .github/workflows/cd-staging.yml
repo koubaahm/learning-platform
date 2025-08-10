@@ -45,10 +45,10 @@ jobs:
           # Option B : on exporte TAG pour docker compose
           export TAG="${TAG}"
 
-          docker compose -p lp-staging --env-file .env.staging down --remove-orphans || true
-          docker compose -p lp-staging --env-file .env.staging pull
-          docker compose -p lp-staging --env-file .env.staging up -d --wait --wait-timeout 300
-          docker compose -p lp-staging --env-file .env.staging ps
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging down --remove-orphans || true
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging pull
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --wait --wait-timeout 300
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging ps
 
       - name: Health probe with retries (18080)
         shell: bash
@@ -64,3 +64,9 @@ jobs:
           echo "Backend not healthy"
           docker compose -p lp-staging --env-file .env.staging logs backend || true
           exit 1
+
+      - name: Show resolved compose (ports)
+        shell: bash
+        run: |
+         docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging config | sed -n '/services:/,/volumes:/p' | sed -n '/postgres:/,/^[^ ]/p'
+    

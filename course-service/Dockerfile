@@ -1,6 +1,9 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
 COPY mvnw .
 COPY .mvn .mvn
 COPY pom.xml .

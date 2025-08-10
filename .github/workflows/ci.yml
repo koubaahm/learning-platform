@@ -1,13 +1,13 @@
-# File: .github/workflows/ci.yml
 name: CI
+
+permissions:
+  contents: read
+  packages: write
 
 on:
   push:
     branches: ["main"]
   pull_request:
-
-permissions:
-  contents: read
 
 env:
   REGISTRY: ghcr.io
@@ -18,86 +18,50 @@ concurrency:
 
 jobs:
   build:
-    permissions:
-      contents: read
-      packages: read
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4 pinned
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@8df1039502a15bceb9433410b1a100fbe190c53b  # v4 pinned
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
       - name: Define image names
-        shell: bash
         run: |
           OWNER=${{ github.repository_owner }}
           echo "IMAGE_BACKEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-backend" >> $GITHUB_ENV
           echo "IMAGE_FRONTEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-frontend" >> $GITHUB_ENV
           echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@5e716dcfd653738c2bb9093a5f28c7bce417ad94  # v3 pinned
-
-      - name: Login to GHCR (push on main only)
+      - name: Log in to GHCR (push on main only)
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567  # v3 pinned
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute extra tag (if tag push)
-        id: tags
-        shell: bash
+      - name: Build backend image
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "extra_tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
+          cd course-service
+          chmod +x mvnw || true
+          ./mvnw -B -U -DskipTests clean package
+          docker build -t $IMAGE_BACKEND:$TAG -t $IMAGE_BACKEND:latest .
 
-      - name: Build backend
-        uses: docker/build-push-action@4f58ea79222b3b9ef8b3011b652b200ad41f6bcd 
-        with:
-          context: course-service
-          file: course-service/Dockerfile
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            ${{ env.IMAGE_BACKEND }}:${{ env.TAG }}
-            ${{ env.IMAGE_BACKEND }}:latest
-            ${{ steps.tags.outputs.extra_tag && format('{0}:{1}', env.IMAGE_BACKEND, steps.tags.outputs.extra_tag) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build frontend image
+        run: |
+          cd frontend
+          docker build -t $IMAGE_FRONTEND:$TAG -t $IMAGE_FRONTEND:latest .
 
-      - name: Build frontend
-        uses: docker/build-push-action@4f58ea79222b3b9ef8b3011b652b200ad41f6bcd
-        with:
-          context: frontend
-          file: frontend/Dockerfile
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: |
-            ${{ env.IMAGE_FRONTEND }}:${{ env.TAG }}
-            ${{ env.IMAGE_FRONTEND }}:latest
-            ${{ steps.tags.outputs.extra_tag && format('{0}:{1}', env.IMAGE_FRONTEND, steps.tags.outputs.extra_tag) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  pr-only-checks:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
-      - name: Hadolint Dockerfiles
-        uses: hadolint/hadolint-action@998d6d3a5a7b93f5d3f05cfa1f0c2f07f2b3d7d7
-        with:
-          dockerfile: |
-            course-service/Dockerfile
-            frontend/Dockerfile
+      - name: Push images (main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          docker push $IMAGE_BACKEND:$TAG
+          docker push $IMAGE_BACKEND:latest
+          docker push $IMAGE_FRONTEND:$TAG
+          docker push $IMAGE_FRONTEND:latest

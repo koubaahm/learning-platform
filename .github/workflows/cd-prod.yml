@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   deploy-prod:
-    runs-on: [self-hosted]   # <-- cible la nouvelle VM
+    runs-on: self-hosted
     timeout-minutes: 30
     environment:
       name: production
@@ -36,17 +36,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull & deploy
+      - name: Pull & deploy (prod stack)
         shell: bash
         run: |
           set -euo pipefail
-          docker compose -p lp-prod --env-file .env.prod pull
-          docker compose -p lp-prod --env-file .env.prod up -d --wait --wait-timeout 300
-          docker compose -p lp-prod --env-file .env.prod ps
+          docker compose -p lp-prod --env-file .env pull
+          docker compose -p lp-prod --env-file .env up -d --wait --wait-timeout 300
+          docker compose -p lp-prod --env-file .env ps
 
       - name: Health probe
         shell: bash
         run: |
           curl -fsS http://localhost:8080/actuator/health || {
-            echo "Backend not healthy"; docker compose -p lp-prod --env-file .env.prod logs backend || true; exit 1;
+            echo "Backend not healthy"
+            docker compose -p lp-prod --env-file .env logs backend || true
+            exit 1
           }

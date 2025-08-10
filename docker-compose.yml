@@ -46,7 +46,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: ghcr.io/koubaahm/learning-platform-backend:latest
+    image: ${IMAGE_BACKEND}:${TAG:-latest}
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/koubaahm/learning-platform-frontend:latest
+    image: ${IMAGE_FRONTEND}:${TAG:-latest}
     ports:
       - "3000:80"
     depends_on:

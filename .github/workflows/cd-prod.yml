@@ -1,4 +1,4 @@
-name: CD - Prod (Manual)
+name: CD - Prod
 
 permissions:
   contents: read

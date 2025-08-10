@@ -42,10 +42,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker compose -p lp-staging --env-file .env.staging down --remove-orphans || true
-          docker compose -p lp-staging --env-file .env.staging pull
-          docker compose -p lp-staging --env-file .env.staging up -d --wait --wait-timeout 300
-          docker compose -p lp-staging --env-file .env.staging ps
+          docker compose -p lp-staging --env-file .env down --remove-orphans || true
+          docker compose -p lp-staging --env-file .env pull
+          docker compose -p lp-staging --env-file .env up -d --wait --wait-timeout 300
+          docker compose -p lp-staging --env-file .env ps
 
       - name: Health probe with retries
         shell: bash

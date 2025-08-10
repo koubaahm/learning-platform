@@ -5,7 +5,6 @@ permissions:
   packages: read
 
 on:
-  # Se déclenche quand le workflow CI se termine sur la branche develop
   workflow_run:
     workflows: ["CI"]
     branches: ["develop"]
@@ -22,7 +21,7 @@ jobs:
     timeout-minutes: 30
     environment:
       name: staging
-      url: http://localhost:8080
+      url: http://localhost:18080
     env:
       TAG: ${{ github.event.workflow_run.head_sha }}
 
@@ -43,20 +42,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # OPTION B : rendre TAG dispo à docker compose sans l’écrire dans .env.staging
           export TAG="${TAG}"
 
-          docker compose -p lp-staging --env-file .env.staging down --remove-orphans || true
-          docker compose -p lp-staging --env-file .env.staging pull
-          docker compose -p lp-staging --env-file .env.staging up -d --wait --wait-timeout 300
-          docker compose -p lp-staging --env-file .env.staging ps
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging down --remove-orphans || true
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging pull
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --wait --wait-timeout 300
+          docker compose -p lp-staging -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging ps
 
-      - name: Health probe with retries
+      - name: Health probe with retries (18080)
         shell: bash
         run: |
           set -euo pipefail
           for i in {1..10}; do
-            if curl -fsS http://localhost:8080/actuator/health > /dev/null; then
+            if curl -fsS http://localhost:18080/actuator/health > /dev/null; then
               echo "Healthy."
               exit 0
             fi

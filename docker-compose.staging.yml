@@ -1,0 +1,9 @@
+services:
+  postgres:
+    ports: []
+    expose:
+      - "5432"
+  kibana:
+    ports: []
+    expose:
+      - "5601"

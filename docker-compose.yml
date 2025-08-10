@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,10 +22,8 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    # Staging: ports côté hôte paramétrables (19200/19300 conseillés)
     ports:
-      - "${ES_HTTP_PORT:-9200}:9200"
-      - "${ES_TRANSPORT_PORT:-9300}:9300"
+      - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
     healthcheck:
@@ -34,7 +32,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
-      start_period: 60s  
     restart: unless-stopped
 
   kibana:
@@ -42,35 +39,29 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
-      - "${KIBANA_PORT:-15601}:5601"
+      - "5601:5601"
     depends_on:
       elasticsearch:
         condition: service_healthy
     restart: unless-stopped
 
   backend:
-    image: ${IMAGE_BACKEND}:${TAG}
+    image: ${IMAGE_BACKEND}:${TAG:-latest}
     depends_on:
       postgres:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
     environment:
+      # Aligne le port de l’app sur 8080
       SERVER_PORT: 8080
-
-      
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
-
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      SPRING_ELASTICSEARCH_CONNECTION_TIMEOUT: 5s
-      SPRING_ELASTICSEARCH_SOCKET_TIMEOUT: 30s
-
     ports:
-      - "${BACKEND_HTTP_PORT:-8080}:8080"
+      - "8080:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null || exit 1"]
       interval: 5s
@@ -79,9 +70,9 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ${IMAGE_FRONTEND}:${TAG}
+    image: ${IMAGE_FRONTEND}:${TAG:-latest}
     ports:
-      - "${FRONTEND_HTTP_PORT:-8081}:80"
+      - "3000:80"
     depends_on:
       backend:
         condition: service_healthy

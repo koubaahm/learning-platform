@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main"]
   pull_request:
 
 env:
@@ -32,15 +32,14 @@ jobs:
           cache: maven
 
       - name: Define image names
-        shell: bash
         run: |
           OWNER=${{ github.repository_owner }}
           echo "IMAGE_BACKEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-backend" >> $GITHUB_ENV
           echo "IMAGE_FRONTEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-frontend" >> $GITHUB_ENV
           echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
 
-      - name: Log in to GHCR (push on main|develop only)
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+      - name: Log in to GHCR (push on main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -59,21 +58,10 @@ jobs:
           cd frontend
           docker build -t $IMAGE_FRONTEND:$TAG -t $IMAGE_FRONTEND:latest .
 
-      - name: Push images (main|develop only)
-        if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+      - name: Push images (main only)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
-          # Toujours pousser :$TAG
           docker push $IMAGE_BACKEND:$TAG
+          docker push $IMAGE_BACKEND:latest
           docker push $IMAGE_FRONTEND:$TAG
-
-          if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            # latest uniquement sur main
-            docker push $IMAGE_BACKEND:latest
-            docker push $IMAGE_FRONTEND:latest
-          else
-            # alias pratique pour la recette
-            docker tag $IMAGE_BACKEND:$TAG $IMAGE_BACKEND:staging-latest
-            docker tag $IMAGE_FRONTEND:$TAG $IMAGE_FRONTEND:staging-latest
-            docker push $IMAGE_BACKEND:staging-latest
-            docker push $IMAGE_FRONTEND:staging-latest
-          fi
+          docker push $IMAGE_FRONTEND:latest

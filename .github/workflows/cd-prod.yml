@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Tag/commit SHA à déployer en prod"
+        description: "Tag/commit SHA à déployer (utilisé comme TAG dans compose)"
         required: true
 
 concurrency:
@@ -17,29 +17,33 @@ concurrency:
 
 jobs:
   deploy-prod:
-    runs-on: self-hosted
+    runs-on: self-hosted              # ton runner de la VM
     timeout-minutes: 30
     environment:
       name: production
       url: http://localhost:8080
     env:
-      IMAGE_TAG: ${{ inputs.image_tag }}
+      TAG: ${{ inputs.image_tag }}    # écrase TAG=latest de .env
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo at requested ref
+        uses: actions/checkout@v4
         with:
-          ref: ${{ env.IMAGE_TAG }}
+          ref: ${{ env.TAG }}
 
-      - uses: docker/login-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull & deploy (prod stack)
+      - name: Pull & deploy
         shell: bash
         run: |
           set -euo pipefail
+          # si une ancienne stack tourne, libère les ports (facultatif)
+          docker compose -p lp-prod --env-file .env down --remove-orphans || true
           docker compose -p lp-prod --env-file .env pull
           docker compose -p lp-prod --env-file .env up -d --wait --wait-timeout 300
           docker compose -p lp-prod --env-file .env ps

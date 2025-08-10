@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   deploy-prod:
-    runs-on: [self-hosted, linux, prod]   # <-- cible la nouvelle VM
+    runs-on: [self-hosted]   # <-- cible la nouvelle VM
     timeout-minutes: 30
     environment:
       name: production

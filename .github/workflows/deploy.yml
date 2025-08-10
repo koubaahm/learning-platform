@@ -7,8 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BACKEND: ghcr.io/<TON_USER_GITHUB>/learning-platform-backend
-  IMAGE_FRONTEND: ghcr.io/<TON_USER_GITHUB>/learning-platform-frontend
+  IMAGE_BACKEND: ghcr.io/koubaahm/learning-platform-backend
+  IMAGE_FRONTEND: ghcr.io/koubaahm/learning-platform-frontend
 
 jobs:
  

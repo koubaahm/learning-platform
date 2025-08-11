@@ -7,22 +7,16 @@ permissions:
 on:
   push:
     branches: ["main"]
-  pull_request:
+    tags: ["v*"]            # <— build aussi sur tags Git
 
 env:
   REGISTRY: ghcr.io
 
-concurrency:
-  group: learning-platform-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -36,10 +30,11 @@ jobs:
           OWNER=${{ github.repository_owner }}
           echo "IMAGE_BACKEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-backend" >> $GITHUB_ENV
           echo "IMAGE_FRONTEND=${{ env.REGISTRY }}/${OWNER,,}/learning-platform-frontend" >> $GITHUB_ENV
-          echo "TAG=${{ github.sha }}" >> $GITHUB_ENV
+          echo "SHA_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          # ref tag lisible (main ou v1.0.7)
+          echo "REF_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
 
-      - name: Log in to GHCR (push on main only)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -51,17 +46,27 @@ jobs:
           cd course-service
           chmod +x mvnw || true
           ./mvnw -B -U -DskipTests clean package
-          docker build -t $IMAGE_BACKEND:$TAG -t $IMAGE_BACKEND:latest .
+          docker build \
+            -t $IMAGE_BACKEND:${SHA_TAG} \
+            -t $IMAGE_BACKEND:${REF_TAG} \
+            $( [ "${{ github.ref_type }}" = "branch" ] && echo "-t $IMAGE_BACKEND:latest" ) \
+            .
 
       - name: Build frontend image
         run: |
           cd frontend
-          docker build -t $IMAGE_FRONTEND:$TAG -t $IMAGE_FRONTEND:latest .
+          docker build \
+            -t $IMAGE_FRONTEND:${SHA_TAG} \
+            -t $IMAGE_FRONTEND:${REF_TAG} \
+            $( [ "${{ github.ref_type }}" = "branch" ] && echo "-t $IMAGE_FRONTEND:latest" ) \
+            .
 
-      - name: Push images (main only)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Push images
         run: |
-          docker push $IMAGE_BACKEND:$TAG
-          docker push $IMAGE_BACKEND:latest
-          docker push $IMAGE_FRONTEND:$TAG
-          docker push $IMAGE_FRONTEND:latest
+          for IMG in $IMAGE_BACKEND $IMAGE_FRONTEND; do
+            docker push $IMG:${SHA_TAG}
+            docker push $IMG:${REF_TAG}
+            if [ "${{ github.ref_type }}" = "branch" ] && [ "${{ github.ref_name }}" = "main" ]; then
+              docker push $IMG:latest
+            fi
+          done

@@ -1,4 +1,4 @@
-name: CD - Prod (Manual)
+name: CD - Prod
 
 permissions:
   contents: read
@@ -7,29 +7,22 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "Tag/commit SHA à déployer (utilisé comme TAG dans compose)"
+      ref:
+        description: "Ref à déployer (ex: main ou v1.0.7)"
         required: true
-
-concurrency:
-  group: deploy-prod
-  cancel-in-progress: true
+        default: "main"
 
 jobs:
   deploy-prod:
-    runs-on: self-hosted              # ton runner de la VM
-    timeout-minutes: 30
-    environment:
-      name: production
-      url: http://localhost:8080
+    runs-on: self-hosted
     env:
-      TAG: ${{ inputs.image_tag }}    # écrase TAG=latest de .env
+      TAG: ${{ inputs.ref }}
 
     steps:
-      - name: Checkout repo at requested ref
+      - name: Checkout repo at ref
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ inputs.ref }}     # <-- valide pour Git
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -38,21 +31,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Load .env (for image names)
+        run: |
+          set -e
+          # exporte les variables du .env vers l'environnement de step
+          export $(grep -v '^#' .env | xargs -d '\n') || true
+          echo "IMAGE_BACKEND=$IMAGE_BACKEND" >> $GITHUB_ENV
+          echo "IMAGE_FRONTEND=$IMAGE_FRONTEND" >> $GITHUB_ENV
+
+      - name: Preflight — verify images exist
+        run: |
+          set -e
+          for IMG in "$IMAGE_BACKEND" "$IMAGE_FRONTEND"; do
+            docker manifest inspect ${IMG}:${TAG} >/dev/null || {
+              echo "::error ::Image not found: ${IMG}:${TAG}"
+              exit 1
+            }
+          done
+
       - name: Pull & deploy
-        shell: bash
         run: |
           set -euo pipefail
-          # si une ancienne stack tourne, libère les ports (facultatif)
           docker compose -p lp-prod --env-file .env down --remove-orphans || true
-          docker compose -p lp-prod --env-file .env pull
-          docker compose -p lp-prod --env-file .env up -d --wait --wait-timeout 300
+          # override TAG dans l'env runtime compose
+          TAG=${TAG} docker compose -p lp-prod --env-file .env pull
+          TAG=${TAG} docker compose -p lp-prod --env-file .env up -d --wait --wait-timeout 300
           docker compose -p lp-prod --env-file .env ps
 
       - name: Health probe
-        shell: bash
         run: |
-          curl -fsS http://localhost:8080/actuator/health || {
-            echo "Backend not healthy"
-            docker compose -p lp-prod --env-file .env logs backend || true
-            exit 1
-          }
+          curl -fsS http://localhost:8080/actuator/health
